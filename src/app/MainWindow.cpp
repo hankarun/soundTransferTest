@@ -70,6 +70,8 @@ void MainWindow::buildUi()
                    int(sound::AudioEngine::Mode::Opus));
     mode_->addItem(tr("Raw PCM (uncompressed)"),
                    int(sound::AudioEngine::Mode::Raw));
+    mode_->addItem(tr("Zip PCM (zlib)"),
+                   int(sound::AudioEngine::Mode::Zip));
     netForm->addRow(tr("Peer IP:"), peerHost_);
     netForm->addRow(tr("Local port:"), localPort_);
     netForm->addRow(tr("Peer port:"), peerPort_);

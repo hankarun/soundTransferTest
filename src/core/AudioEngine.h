@@ -26,9 +26,12 @@ public:
     explicit AudioEngine(QObject* parent = nullptr);
     ~AudioEngine() override;
 
-    // Transport payload format. Raw sends uncompressed PCM frames (no Opus);
-    // both ends must use the same mode — it is not negotiated on the wire.
-    enum class Mode { Opus, Raw };
+    // Transport payload format. Both ends must use the same mode — it is not
+    // negotiated on the wire.
+    //   Opus - Opus-compressed frames.
+    //   Raw  - uncompressed PCM frames.
+    //   Zip  - PCM frames compressed with Qt's zlib (qCompress/qUncompress).
+    enum class Mode { Opus, Raw, Zip };
 
     // Selects the mode for the next start(). Has no effect while running.
     void setMode(Mode mode) { mode_ = mode; }

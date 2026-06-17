@@ -160,6 +160,12 @@ void AudioEngine::onFrameCaptured(const QByteArray& pcm)
         return;
     }
 
+    if (mode_ == Mode::Zip) {
+        // Compress the PCM frame with Qt's zlib.
+        transport_->send(qCompress(pcm.left(kFrameBytes)));
+        return;
+    }
+
     if (!encoder_)
         return;
     const auto* samples = reinterpret_cast<const int16_t*>(pcm.constData());
@@ -176,6 +182,13 @@ void AudioEngine::onPacketReceived(quint32 /*seq*/, const QByteArray& payload)
     if (mode_ == Mode::Raw) {
         // Payload is raw PCM; play it directly.
         playback_->writeFrame(payload);
+        return;
+    }
+
+    if (mode_ == Mode::Zip) {
+        // Inflate the zlib-compressed PCM. qUncompress returns empty on bad
+        // data, which writeFrame ignores.
+        playback_->writeFrame(qUncompress(payload));
         return;
     }
 

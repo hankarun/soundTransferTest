@@ -17,6 +17,7 @@ private slots:
     void endToEndOverLoopback();
     void recoversFromDroppedPacket();
     void rawPcmLoopbackIsLossless();
+    void zipPcmLoopbackIsLossless();
 };
 
 void TestTransmission::endToEndOverLoopback()
@@ -124,6 +125,37 @@ void TestTransmission::rawPcmLoopbackIsLossless()
     QTRY_COMPARE(received.size(), totalFrames);
     for (const auto& got : received)
         QCOMPARE(got, frame); // byte-identical, lossless
+}
+
+void TestTransmission::zipPcmLoopbackIsLossless()
+{
+    // Zip mode sends qCompress'd PCM; after qUncompress on the far end the
+    // bytes must match the source exactly, and the wire payload should be
+    // smaller than the raw frame.
+    UdpTransport sender;
+    UdpTransport receiver;
+    QVERIFY(sender.bind(0));
+    QVERIFY(receiver.bind(0));
+    sender.setPeer(QHostAddress::LocalHost, receiver.localPort());
+
+    const int totalFrames = 20;
+    const auto pcm = testutil::sine(sound::kFrameSamples, 440.0);
+    const QByteArray frame = testutil::toBytes(pcm);
+    const QByteArray compressed = qCompress(frame);
+    QVERIFY(compressed.size() < frame.size());
+
+    QVector<QByteArray> received;
+    connect(&receiver, &UdpTransport::packetReceived,
+            [&](quint32, const QByteArray& payload) {
+                received.append(qUncompress(payload));
+            });
+
+    for (int f = 0; f < totalFrames; ++f)
+        QVERIFY(sender.send(compressed) > 0);
+
+    QTRY_COMPARE(received.size(), totalFrames);
+    for (const auto& got : received)
+        QCOMPARE(got, frame); // byte-identical after decompression
 }
 
 QTEST_MAIN(TestTransmission)
