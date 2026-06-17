@@ -95,6 +95,10 @@ Pick a **Mode** in the GUI before pressing Start:
   Lossless and zero codec latency, but ~768 kbps audio (~790 kbps on the wire) per
   direction. Each frame is 1920 bytes + header, so datagrams exceed the typical 1500-byte
   MTU and get IP-fragmented — fine on a LAN, less robust over lossy links.
+- **Zip PCM (zlib)** — PCM compressed per-frame with Qt's `qCompress` / `qUncompress`.
+  Lossless. Note that 16-bit audio is high-entropy, so zlib gives little or no size
+  reduction over Raw (and may even be slightly larger); it's offered as a simple,
+  dependency-free option, not a substitute for Opus.
 
 The mode is **not negotiated** — set the **same mode on both PCs**, or you'll hear noise.
 It's intentionally the user's responsibility, so there's no handshake to wait on.
