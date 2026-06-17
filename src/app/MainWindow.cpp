@@ -30,6 +30,15 @@ MainWindow::MainWindow(QWidget* parent)
     connect(engine_, &sound::AudioEngine::rxLevel, this, [this](qreal rms) {
         rxMeter_->setValue(int(rms * 100));
     });
+    connect(engine_, &sound::AudioEngine::bandwidth, this, [this](double tx, double rx) {
+        bwLabel_->setText(tr("TX %1 / RX %2 kbit/s")
+                              .arg(tx, 0, 'f', 1).arg(rx, 0, 'f', 1));
+    });
+    connect(engine_, &sound::AudioEngine::receiveOnly, this, [this] {
+        txMeter_->setEnabled(false);
+        txMeter_->setFormat(tr("no mic"));
+        status_->setText(tr("Running (receive-only — no microphone)."));
+    });
     connect(engine_, &sound::AudioEngine::errorOccurred, this, &MainWindow::onError);
 }
 
@@ -56,9 +65,15 @@ void MainWindow::buildUi()
     peerPort_ = new QSpinBox(netBox);
     peerPort_->setRange(1, 65535);
     peerPort_->setValue(5000);
+    mode_ = new QComboBox(netBox);
+    mode_->addItem(tr("Opus (compressed)"),
+                   int(sound::AudioEngine::Mode::Opus));
+    mode_->addItem(tr("Raw PCM (uncompressed)"),
+                   int(sound::AudioEngine::Mode::Raw));
     netForm->addRow(tr("Peer IP:"), peerHost_);
     netForm->addRow(tr("Local port:"), localPort_);
     netForm->addRow(tr("Peer port:"), peerPort_);
+    netForm->addRow(tr("Mode:"), mode_);
 
     auto* meterBox = new QGroupBox(tr("Levels"), central);
     auto* meterForm = new QFormLayout(meterBox);
@@ -66,8 +81,10 @@ void MainWindow::buildUi()
     txMeter_->setRange(0, 100);
     rxMeter_ = new QProgressBar(meterBox);
     rxMeter_->setRange(0, 100);
+    bwLabel_ = new QLabel(QStringLiteral("—"), meterBox);
     meterForm->addRow(tr("Mic (TX):"), txMeter_);
     meterForm->addRow(tr("Speaker (RX):"), rxMeter_);
+    meterForm->addRow(tr("Bandwidth:"), bwLabel_);
 
     startStop_ = new QPushButton(tr("Start"), central);
     startStop_->setCheckable(true);
@@ -87,8 +104,19 @@ void MainWindow::buildUi()
 
 void MainWindow::populateDevices()
 {
-    for (const auto& dev : sound::AudioCapture::availableDevices())
+    const auto inputs = sound::AudioCapture::availableDevices();
+    for (const auto& dev : inputs)
         inputDevices_->addItem(dev.deviceName(), QVariant::fromValue(dev));
+
+    hasMic_ = !inputs.isEmpty();
+    if (inputs.isEmpty()) {
+        // No microphone: the session will run receive-only.
+        inputDevices_->addItem(tr("(no microphone — receive only)"));
+        inputDevices_->setEnabled(false);
+        txMeter_->setEnabled(false);
+        txMeter_->setFormat(tr("no mic"));
+    }
+
     for (const auto& dev : sound::AudioPlayback::availableDevices())
         outputDevices_->addItem(dev.deviceName(), QVariant::fromValue(dev));
 }
@@ -112,6 +140,8 @@ void MainWindow::toggle()
     QAudioDeviceInfo in  = inputDevices_->currentData().value<QAudioDeviceInfo>();
     QAudioDeviceInfo out = outputDevices_->currentData().value<QAudioDeviceInfo>();
 
+    engine_->setMode(sound::AudioEngine::Mode(mode_->currentData().toInt()));
+
     if (engine_->start(quint16(localPort_->value()), peer,
                        quint16(peerPort_->value()), in, out)) {
         setRunning(true);
@@ -124,8 +154,9 @@ void MainWindow::setRunning(bool running)
 {
     startStop_->setChecked(running);
     startStop_->setText(running ? tr("Stop") : tr("Start"));
-    inputDevices_->setEnabled(!running);
+    inputDevices_->setEnabled(!running && hasMic_);
     outputDevices_->setEnabled(!running);
+    mode_->setEnabled(!running);
     peerHost_->setEnabled(!running);
     localPort_->setEnabled(!running);
     peerPort_->setEnabled(!running);
@@ -135,6 +166,7 @@ void MainWindow::setRunning(bool running)
     if (!running) {
         txMeter_->setValue(0);
         rxMeter_->setValue(0);
+        bwLabel_->setText(QStringLiteral("—"));
     }
 }
 

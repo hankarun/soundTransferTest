@@ -25,6 +25,12 @@ public:
 
     quint16 localPort() const;
 
+    // Cumulative traffic counters (datagram bytes = 4-byte header + payload).
+    quint64 bytesSent() const { return bytesSent_; }
+    quint64 bytesReceived() const { return bytesReceived_; }
+    quint64 packetsSent() const { return packetsSent_; }
+    quint64 packetsReceived() const { return packetsReceived_; }
+
 public slots:
     // Prepends the sequence header and sends the payload to the peer.
     // Returns the number of payload bytes sent, or -1 on error.
@@ -41,6 +47,11 @@ private:
     QHostAddress peerAddr_;
     quint16      peerPort_ = 0;
     quint32      txSeq_    = 0;
+
+    quint64 bytesSent_       = 0;
+    quint64 bytesReceived_   = 0;
+    quint64 packetsSent_     = 0;
+    quint64 packetsReceived_ = 0;
 };
 
 } // namespace sound

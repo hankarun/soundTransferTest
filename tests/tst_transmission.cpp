@@ -16,6 +16,7 @@ class TestTransmission : public QObject
 private slots:
     void endToEndOverLoopback();
     void recoversFromDroppedPacket();
+    void rawPcmLoopbackIsLossless();
 };
 
 void TestTransmission::endToEndOverLoopback()
@@ -96,6 +97,33 @@ void TestTransmission::recoversFromDroppedPacket()
     }
 
     QCOMPARE(decodedFrames, totalFrames); // stream survived the drop
+}
+
+void TestTransmission::rawPcmLoopbackIsLossless()
+{
+    // Raw mode sends uncompressed PCM frames directly; over the loopback the
+    // received bytes must match the source exactly (no codec, no loss).
+    UdpTransport sender;
+    UdpTransport receiver;
+    QVERIFY(sender.bind(0));
+    QVERIFY(receiver.bind(0));
+    sender.setPeer(QHostAddress::LocalHost, receiver.localPort());
+
+    const int totalFrames = 20;
+    const auto pcm = testutil::sine(sound::kFrameSamples, 440.0);
+    const QByteArray frame = testutil::toBytes(pcm);
+    QCOMPARE(frame.size(), sound::kFrameBytes);
+
+    QVector<QByteArray> received;
+    connect(&receiver, &UdpTransport::packetReceived,
+            [&](quint32, const QByteArray& payload) { received.append(payload); });
+
+    for (int f = 0; f < totalFrames; ++f)
+        QVERIFY(sender.send(frame) > 0);
+
+    QTRY_COMPARE(received.size(), totalFrames);
+    for (const auto& got : received)
+        QCOMPARE(got, frame); // byte-identical, lossless
 }
 
 QTEST_MAIN(TestTransmission)

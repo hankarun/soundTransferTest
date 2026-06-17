@@ -46,7 +46,11 @@ qint64 UdpTransport::send(const QByteArray& payload)
     datagram.append(payload);
 
     const qint64 sent = socket_->writeDatagram(datagram, peerAddr_, peerPort_);
-    return sent < 0 ? -1 : sent - 4;
+    if (sent < 0)
+        return -1;
+    bytesSent_ += quint64(sent);
+    ++packetsSent_;
+    return sent - 4;
 }
 
 void UdpTransport::onReadyRead()
@@ -55,6 +59,9 @@ void UdpTransport::onReadyRead()
         QByteArray datagram;
         datagram.resize(int(socket_->pendingDatagramSize()));
         socket_->readDatagram(datagram.data(), datagram.size());
+
+        bytesReceived_ += quint64(datagram.size());
+        ++packetsReceived_;
 
         if (datagram.size() < 4)
             continue; // malformed

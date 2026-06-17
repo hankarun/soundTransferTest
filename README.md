@@ -86,6 +86,19 @@ on both ends, then press **Start** on both:
 Allow the chosen UDP port through both firewalls (on Windows the first run usually
 prompts for network access — allow it for private networks).
 
+## Modes
+
+Pick a **Mode** in the GUI before pressing Start:
+
+- **Opus (compressed)** — default. ~24 kbps audio, ~35 kbps on the wire per direction.
+- **Raw PCM (uncompressed)** — no codec; sends 48 kHz/16-bit mono frames directly.
+  Lossless and zero codec latency, but ~768 kbps audio (~790 kbps on the wire) per
+  direction. Each frame is 1920 bytes + header, so datagrams exceed the typical 1500-byte
+  MTU and get IP-fragmented — fine on a LAN, less robust over lossy links.
+
+The mode is **not negotiated** — set the **same mode on both PCs**, or you'll hear noise.
+It's intentionally the user's responsibility, so there's no handshake to wait on.
+
 ## Future enhancements
 
 - Jitter buffer with reordering by sequence number.
